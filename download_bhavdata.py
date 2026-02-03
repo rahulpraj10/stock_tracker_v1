@@ -11,8 +11,8 @@ def download_and_process_bhavdata():
     yyyy = now.strftime("%Y")
     ddmm = now.strftime("%d%m")
     # Hardcoded for testing
-    yyyy = "2026"
-    ddmm = "0302"
+    # yyyy = "2026"
+    # ddmm = "0302"
     # 2. Construct the URL
     # URL format: https://www.bseindia.com/BSEDATA/gross/YYYY/SCBSEALLDDMM.zip
     url = f"https://www.bseindia.com/BSEDATA/gross/{yyyy}/SCBSEALL{ddmm}.zip"
@@ -84,6 +84,23 @@ def download_and_process_bhavdata():
         print("This may happen if the file for the current date does not exist (e.g., weekend or holiday).")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+    # 7. Print contents of the final PKL file
+    target_pkl = os.path.join(output_dir, "StockData.pkl")
+    if os.path.exists(target_pkl):
+        print("\n" + "="*50)
+        print(f"Contents of {target_pkl}:")
+        try:
+            final_df = pd.read_pickle(target_pkl)
+            print(f"Total Rows: {len(final_df)}")
+            print("\nFirst 5 rows:")
+            print(final_df.head())
+            print("\nLast 5 rows:")
+            print(final_df.tail())
+            print("="*50 + "\n")
+        except Exception as e:
+            print(f"Error reading final PKL for specific display: {e}")
+
 
 if __name__ == "__main__":
     download_and_process_bhavdata()
