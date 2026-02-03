@@ -11,8 +11,8 @@ def download_and_process_bhavdata():
     yyyy = now.strftime("%Y")
     ddmm = now.strftime("%d%m")
     # Hardcoded for testing
-    yyyy = "2026"
-    ddmm = "0302"
+    # yyyy = "2026"
+    # ddmm = "0302"
     # 2. Construct the URL
     # URL format: https://www.bseindia.com/BSEDATA/gross/YYYY/SCBSEALLDDMM.zip
     url = f"https://www.bseindia.com/BSEDATA/gross/{yyyy}/SCBSEALL{ddmm}.zip"

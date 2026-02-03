@@ -24,51 +24,31 @@ def get_data():
         df = pd.read_pickle(io.BytesIO(response.content))
         
         # --- Data Cleaning Logic ---
-        # Check if the dataframe has bad columns (fused with |)
-        # Typically if loaded with comma default, we might see one column like "SC_CODE|SC_NAME|..."
-        
         cols_to_check = [col for col in df.columns if '|' in str(col)]
         
         if cols_to_check:
-            # We have fused columns. Let's assume the first column is the fused one.
-            # And 'DownloadDate' might be separate if it was added correctly after read.
-            # Or if read_csv faild, everything might be messy.
-            
-            # Strategy:
-            # 1. Identify valid separate columns (like DownloadDate)
-            # 2. Identify the fused column.
-            # 3. Split the fused column.
-            
             clean_dfs = []
-            
             for col in df.columns:
                 if '|' in str(col):
-                    # This is a fused column. Split the column name to get headers.
                     headers = str(col).split('|')
+                    # Clean headers: remove potential whitespace
+                    headers = [h.strip() for h in headers]
                     
-                    # Now split the data in this column
-                    # We need to coerce to string first
                     split_data = df[col].astype(str).str.split('|', expand=True)
                     
-                    # Assign headers if count matches
                     if split_data.shape[1] == len(headers):
                         split_data.columns = headers
                     else:
-                        # shape mismatch, just use generic names or try best effort
-                        # Usually it matches if just a delimiter issue
                         split_data.columns = headers[:split_data.shape[1]]
                         
                     clean_dfs.append(split_data)
                 else:
-                    # Keep valid columns as is
                     clean_dfs.append(df[[col]])
             
-            # Reassemble
             df = pd.concat(clean_dfs, axis=1)
-            
-        # Ensure DownloadDate is datetime for filtering
-        if 'DownloadDate' in df.columns:
-            df['DownloadDate'] = pd.to_datetime(df['DownloadDate']).dt.date
+        
+        # General whitespace cleanup for ALL column headers
+        df.columns = df.columns.astype(str).str.strip()
 
         cache.data = df
         return df
@@ -84,23 +64,16 @@ def index():
 
     # Filters
     sc_code_filter = request.args.get('SC_CODE', '').strip()
-    date_filter = request.args.get('DATE', '').strip()
 
     filtered_df = df.copy()
     
-    # 1. Filter by SC_CODE
+    # Filter by SC_CODE
+    # We look for 'SC_CODE' column. 
+    # Since we stripped whitespace in get_data(), it should be 'SC_CODE'.
     if sc_code_filter and 'SC_CODE' in filtered_df.columns:
+        # Case insensitive partial match
         filtered_df = filtered_df[filtered_df['SC_CODE'].astype(str).str.contains(sc_code_filter, case=False, na=False)]
     
-    # 2. Filter by DATE
-    if date_filter and 'DownloadDate' in filtered_df.columns:
-        # date_filter format YYYY-MM-DD from HTML input type=date
-        try:
-            # Check for exact string match or convert. Data is object(date).
-            filtered_df = filtered_df[filtered_df['DownloadDate'].astype(str) == date_filter]
-        except:
-            pass
-
     # Pagination
     page = request.args.get('page', 1, type=int)
     per_page = 100
@@ -122,8 +95,7 @@ def index():
         current_page=page,
         total_pages=total_pages,
         total_records=total_records,
-        sc_code_filter=sc_code_filter,
-        date_filter=date_filter
+        sc_code_filter=sc_code_filter
     )
 
 if __name__ == '__main__':
