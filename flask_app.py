@@ -6,19 +6,15 @@ import math
 
 app = Flask(__name__)
 
-# Cache configuration - simple in-memory cache
+# Cache configuration
 class DataCache:
     def __init__(self):
         self.data = None
-        self.expiry = None
 
 cache = DataCache()
 DATA_URL = "https://github.com/rahulpraj10/stock_tracker_v1/blob/main/Bhavdata/StockData.pkl?raw=true"
 
 def get_data():
-    # For simplicity, we fetch every time or we can implement primitive caching
-    # Since it's a demo/lite app, fetching fresh or creating a simple singleton is fine.
-    # We'll use a singleton pattern for now to avoid re-downloading on every page turn
     if cache.data is not None:
          return cache.data
 
@@ -26,11 +22,59 @@ def get_data():
         response = requests.get(DATA_URL)
         response.raise_for_status()
         df = pd.read_pickle(io.BytesIO(response.content))
+        
+        # --- Data Cleaning Logic ---
+        # Check if the dataframe has bad columns (fused with |)
+        # Typically if loaded with comma default, we might see one column like "SC_CODE|SC_NAME|..."
+        
+        cols_to_check = [col for col in df.columns if '|' in str(col)]
+        
+        if cols_to_check:
+            # We have fused columns. Let's assume the first column is the fused one.
+            # And 'DownloadDate' might be separate if it was added correctly after read.
+            # Or if read_csv faild, everything might be messy.
+            
+            # Strategy:
+            # 1. Identify valid separate columns (like DownloadDate)
+            # 2. Identify the fused column.
+            # 3. Split the fused column.
+            
+            clean_dfs = []
+            
+            for col in df.columns:
+                if '|' in str(col):
+                    # This is a fused column. Split the column name to get headers.
+                    headers = str(col).split('|')
+                    
+                    # Now split the data in this column
+                    # We need to coerce to string first
+                    split_data = df[col].astype(str).str.split('|', expand=True)
+                    
+                    # Assign headers if count matches
+                    if split_data.shape[1] == len(headers):
+                        split_data.columns = headers
+                    else:
+                        # shape mismatch, just use generic names or try best effort
+                        # Usually it matches if just a delimiter issue
+                        split_data.columns = headers[:split_data.shape[1]]
+                        
+                    clean_dfs.append(split_data)
+                else:
+                    # Keep valid columns as is
+                    clean_dfs.append(df[[col]])
+            
+            # Reassemble
+            df = pd.concat(clean_dfs, axis=1)
+            
+        # Ensure DownloadDate is datetime for filtering
+        if 'DownloadDate' in df.columns:
+            df['DownloadDate'] = pd.to_datetime(df['DownloadDate']).dt.date
+
         cache.data = df
         return df
     except Exception as e:
-        print(f"Error loading data: {e}")
-        return pd.DataFrame() # Empty DF on failure
+        print(f"Error loading/parsing data: {e}")
+        return pd.DataFrame()
 
 @app.route('/')
 def index():
@@ -38,36 +82,36 @@ def index():
     if df.empty:
         return "Error loading data or no data available."
 
-    # Filtering
-    # We support filtering by SC_CODE and SC_NAME as examples
+    # Filters
     sc_code_filter = request.args.get('SC_CODE', '').strip()
-    sc_name_filter = request.args.get('SC_NAME', '').strip()
+    date_filter = request.args.get('DATE', '').strip()
 
     filtered_df = df.copy()
     
-    if sc_code_filter:
-        # Exact match or contains? Let's do string contains for flexibility, assuming Code is numeric but treated as str for search
+    # 1. Filter by SC_CODE
+    if sc_code_filter and 'SC_CODE' in filtered_df.columns:
         filtered_df = filtered_df[filtered_df['SC_CODE'].astype(str).str.contains(sc_code_filter, case=False, na=False)]
     
-    if sc_name_filter:
-        filtered_df = filtered_df[filtered_df['SC_NAME'].str.contains(sc_name_filter, case=False, na=False)]
+    # 2. Filter by DATE
+    if date_filter and 'DownloadDate' in filtered_df.columns:
+        # date_filter format YYYY-MM-DD from HTML input type=date
+        try:
+            # Check for exact string match or convert. Data is object(date).
+            filtered_df = filtered_df[filtered_df['DownloadDate'].astype(str) == date_filter]
+        except:
+            pass
 
     # Pagination
     page = request.args.get('page', 1, type=int)
     per_page = 100
     total_records = len(filtered_df)
     total_pages = math.ceil(total_records / per_page)
-    
-    # Bound page
     page = max(1, min(page, total_pages)) if total_pages > 0 else 1
 
     start = (page - 1) * per_page
     end = start + per_page
     
-    # Get page data
     page_data = filtered_df.iloc[start:end]
-    
-    # Convert to dict for template
     records = page_data.to_dict(orient='records')
     columns = page_data.columns.tolist()
 
@@ -79,7 +123,7 @@ def index():
         total_pages=total_pages,
         total_records=total_records,
         sc_code_filter=sc_code_filter,
-        sc_name_filter=sc_name_filter
+        date_filter=date_filter
     )
 
 if __name__ == '__main__':

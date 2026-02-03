@@ -11,8 +11,8 @@ def download_and_process_bhavdata():
     yyyy = now.strftime("%Y")
     ddmm = now.strftime("%d%m")
     # Hardcoded for testing
-    # yyyy = "2026"
-    # ddmm = "0302"
+    yyyy = "2026"
+    ddmm = "0302"
     # 2. Construct the URL
     # URL format: https://www.bseindia.com/BSEDATA/gross/YYYY/SCBSEALLDDMM.zip
     url = f"https://www.bseindia.com/BSEDATA/gross/{yyyy}/SCBSEALL{ddmm}.zip"
@@ -52,7 +52,8 @@ def download_and_process_bhavdata():
                     print(f"Processing {file_path} for accumulation...")
                     
                     try:
-                        new_df = pd.read_csv(file_path)
+                        # BSE data is often pipe delimited
+                        new_df = pd.read_csv(file_path, sep='|')
                         # Add download date column
                         new_df['DownloadDate'] = now.date()
                     except Exception as e:
