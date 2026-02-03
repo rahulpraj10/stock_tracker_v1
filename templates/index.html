@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Data Viewer</title>
+    <!-- Simple CSS for table and layout -->
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        
+        /* Filter Form */
+        .filters { margin-bottom: 20px; padding: 15px; background: #f4f4f4; border-radius: 5px; }
+        .filters form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .filters input { padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
+        .filters button { padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .filters button:hover { background: #0056b3; }
+        .filters a { margin-left: auto; text-decoration: none; color: #666; font-size: 0.9em; }
+
+        /* Data Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; color: #333; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f1f1; }
+
+        /* Pagination */
+        .pagination { margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center; }
+        .pagination a, .pagination span { padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 3px; }
+        .pagination a:hover { background-color: #f2f2f2; }
+        .pagination .active { background-color: #007bff; color: white; border-color: #007bff; }
+        .pagination .disabled { color: #ccc; pointer-events: none; border-color: #eee; }
+    </style>
+</head>
+<body>
+
+    <h1>Stock Data Viewer</h1>
+
+    <div class="filters">
+        <form action="/" method="get">
+            <label>SC Code: <input type="text" name="SC_CODE" value="{{ sc_code_filter }}" placeholder="Filter by Code"></label>
+            <label>SC Name: <input type="text" name="SC_NAME" value="{{ sc_name_filter }}" placeholder="Filter by Name"></label>
+            <button type="submit">Filter</button>
+            {% if sc_code_filter or sc_name_filter %}
+                <a href="/">Clear Filters</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div>
+        <strong>Total Records:</strong> {{ total_records }}
+    </div>
+
+    {% if records %}
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in records %}
+                <tr>
+                    {% for col in columns %}
+                    <td>{{ row[col] }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        {% if current_page > 1 %}
+            <a href="/?page={{ current_page - 1 }}&SC_CODE={{ sc_code_filter }}&SC_NAME={{ sc_name_filter }}">Previous</a>
+        {% else %}
+            <span class="disabled">Previous</span>
+        {% endif %}
+
+        <span class="active">Page {{ current_page }} of {{ total_pages }}</span>
+
+        {% if current_page < total_pages %}
+            <a href="/?page={{ current_page + 1 }}&SC_CODE={{ sc_code_filter }}&SC_NAME={{ sc_name_filter }}">Next</a>
+        {% else %}
+            <span class="disabled">Next</span>
+        {% endif %}
+    </div>
+    {% else %}
+        <p>No records found.</p>
+    {% endif %}
+
+</body>
+</html>

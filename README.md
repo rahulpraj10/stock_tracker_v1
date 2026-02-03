@@ -16,6 +16,11 @@ This project automates the daily downloading of BSE Bhavdata (stock market data)
     ```bash
     python download_bhavdata.py
     ```
+3.  Run the Web Viewer:
+    ```bash
+    python flask_app.py
+    ```
+    Then open `http://localhost:5000` in your browser.
 
 ## GitHub Actions
 The workflow is defined in `.github/workflows/daily_download.yml`. It runs automatically on the specified schedule.
